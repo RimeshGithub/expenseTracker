@@ -16,9 +16,14 @@ export class TransactionService {
   }
 
   static async addTransaction(transaction: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>): Promise<Transaction> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
     const { data, error } = await supabase
       .from('transactions')
-      .insert([transaction])
+      .insert([{ ...transaction, user_id: user.id }])
       .select()
       .single();
 
