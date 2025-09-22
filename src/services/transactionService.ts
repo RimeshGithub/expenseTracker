@@ -70,7 +70,7 @@ export class TransactionService {
     const { error } = await supabase
       .from('transactions')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
       .eq('user_id', user.id);
 
     if (error) {
