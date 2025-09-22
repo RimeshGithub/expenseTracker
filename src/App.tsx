@@ -57,11 +57,17 @@ function App() {
   }
 
   const handleAddTransaction = async (transactionData: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => {
-    if (editingTransaction) {
-      await updateTransaction(editingTransaction.id, transactionData);
-      setEditingTransaction(null);
-    } else {
-      await addTransaction(transactionData);
+    try {
+      if (editingTransaction) {
+        await updateTransaction(editingTransaction.id, transactionData);
+        setEditingTransaction(null);
+      } else {
+        await addTransaction(transactionData);
+      }
+      setIsFormOpen(false);
+    } catch (error) {
+      // Error is already handled in the hook
+      console.error('Transaction operation failed:', error);
     }
   };
 
@@ -72,7 +78,12 @@ function App() {
 
   const handleDeleteTransaction = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this transaction?')) {
-      await deleteTransaction(id);
+      try {
+        await deleteTransaction(id);
+      } catch (error) {
+        // Error is already handled in the hook
+        console.error('Delete operation failed:', error);
+      }
     }
   };
 

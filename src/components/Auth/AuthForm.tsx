@@ -30,6 +30,9 @@ export function AuthForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.email || !formData.password) {
+      return;
+    }
     onSubmit(formData);
   };
 
@@ -38,6 +41,7 @@ export function AuthForm({
     if (formData.email) {
       onForgotPassword(formData.email);
       setShowForgotPassword(false);
+      alert('Password reset link sent to your email!');
     }
   };
 

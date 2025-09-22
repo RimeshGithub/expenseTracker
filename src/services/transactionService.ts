@@ -3,9 +3,15 @@ import { Transaction } from '../types';
 
 export class TransactionService {
   static async getTransactions(): Promise<Transaction[]> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
+      .eq('user_id', user.id)
       .order('date', { ascending: false });
 
     if (error) {
@@ -35,10 +41,16 @@ export class TransactionService {
   }
 
   static async updateTransaction(id: string, updates: Partial<Transaction>): Promise<Transaction> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
     const { data, error } = await supabase
       .from('transactions')
       .update(updates)
       .eq('id', id)
+      .eq('user_id', user.id)
       .select()
       .single();
 
@@ -50,10 +62,16 @@ export class TransactionService {
   }
 
   static async deleteTransaction(id: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
     const { error } = await supabase
       .from('transactions')
       .delete()
       .eq('id', id);
+      .eq('user_id', user.id);
 
     if (error) {
       throw new Error(`Error deleting transaction: ${error.message}`);
@@ -61,14 +79,22 @@ export class TransactionService {
   }
 
   static subscribeToTransactions(callback: (transactions: Transaction[]) => void) {
-    return supabase
+    const subscription = supabase
       .channel('transactions')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'transactions' },
-        () => {
-          this.getTransactions().then(callback);
+        async (payload) => {
+          // Only refresh if the change affects the current user
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user && payload.new && payload.new.user_id === user.id) {
+            this.getTransactions().then(callback);
+          } else if (user && payload.old && payload.old.user_id === user.id) {
+            this.getTransactions().then(callback);
+          }
         }
       )
       .subscribe();
+
+    return subscription;
   }
 }

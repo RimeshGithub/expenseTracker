@@ -1,57 +1,96 @@
 import { useState, useEffect } from 'react';
 import { Transaction, Summary, CategorySummary } from '../types';
 import { TransactionService } from '../services/transactionService';
+import { useAuth } from './useAuth';
 
 export function useTransactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    loadTransactions();
-    
-    const subscription = TransactionService.subscribeToTransactions((newTransactions) => {
-      setTransactions(newTransactions);
-    });
+    if (isAuthenticated && user) {
+      loadTransactions();
+      
+      const subscription = TransactionService.subscribeToTransactions((newTransactions) => {
+        setTransactions(newTransactions);
+      });
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+      return () => {
+        subscription.unsubscribe();
+      };
+    } else {
+      setTransactions([]);
+      setLoading(false);
+    }
+  }, [isAuthenticated, user]);
 
   const loadTransactions = async () => {
+    if (!isAuthenticated) {
+      setTransactions([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
+      setError(null);
       const data = await TransactionService.getTransactions();
       setTransactions(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
   };
 
   const addTransaction = async (transaction: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => {
+    if (!isAuthenticated) {
+      throw new Error('User not authenticated');
+    }
+
     try {
+      setError(null);
       await TransactionService.addTransaction(transaction);
+      // Refresh transactions after adding
+      await loadTransactions();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+      throw err;
     }
   };
 
   const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
+    if (!isAuthenticated) {
+      throw new Error('User not authenticated');
+    }
+
     try {
+      setError(null);
       await TransactionService.updateTransaction(id, updates);
+      // Refresh transactions after updating
+      await loadTransactions();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+      throw err;
     }
   };
 
   const deleteTransaction = async (id: string) => {
+    if (!isAuthenticated) {
+      throw new Error('User not authenticated');
+    }
+
     try {
+      setError(null);
       await TransactionService.deleteTransaction(id);
+      // Refresh transactions after deleting
+      await loadTransactions();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+      throw err;
     }
   };
 
